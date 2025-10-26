@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Navigation Graph
+    Defines navigation structure between Home, Create Post, and Profile fragments
+-->
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/navigation_home">
+
+    <fragment
+        android:id="@+id/navigation_home"
+        android:name="com.example.socmedss.ui.HomeFeedFragment"
+        android:label="Home Feed" />
+
+    <fragment
+        android:id="@+id/navigation_create"
+        android:name="com.example.socmedss.ui.CreatePostFragment"
+        android:label="Create Post" />
+
+    <fragment
+        android:id="@+id/navigation_profile"
+        android:name="com.example.socmedss.ui.ProfileFragment"
+        android:label="Profile" />
+
+</navigation>
+
+
+
