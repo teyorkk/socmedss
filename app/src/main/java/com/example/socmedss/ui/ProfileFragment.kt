@@ -320,9 +320,11 @@ class ProfileFragment : Fragment() {
                 if (_binding == null) return@launch
                 
                 showLoading(false)
+                // Log the full error for debugging
+                e.printStackTrace()
                 Toast.makeText(
                     requireContext(),
-                    "Error: ${e.message}",
+                    "Error uploading image: ${e.localizedMessage ?: "Unknown error"}",
                     Toast.LENGTH_LONG
                 ).show()
             }
@@ -507,37 +509,35 @@ class ProfileFragment : Fragment() {
             .whereEqualTo("userId", userId)
             .get()
             .addOnSuccessListener { postsSnapshot ->
-                val batch = firestore.batch()
-                for (document in postsSnapshot.documents) {
-                    batch.update(document.reference, "profileImageUrl", newProfileImageUrl)
+                if (!postsSnapshot.isEmpty) {
+                    val batch = firestore.batch()
+                    for (document in postsSnapshot.documents) {
+                        batch.update(document.reference, "profileImageUrl", newProfileImageUrl)
+                    }
+                    batch.commit()
                 }
-                // Commit batch update for posts
-                batch.commit()
-            }
-        
-        // Update all comments by this user (in all posts)
-        firestore.collection("posts")
-            .get()
-            .addOnSuccessListener { postsSnapshot ->
-                val batch = firestore.batch()
-                var updatedComments = 0
                 
-                for (postDoc in postsSnapshot.documents) {
-                    firestore.collection("posts")
-                        .document(postDoc.id)
-                        .collection("comments")
-                        .whereEqualTo("userId", userId)
-                        .get()
-                        .addOnSuccessListener { commentsSnapshot ->
-                            for (commentDoc in commentsSnapshot.documents) {
-                                batch.update(commentDoc.reference, "profileImageUrl", newProfileImageUrl)
-                                updatedComments++
-                            }
-                            
-                            // Commit batch update
-                            batch.commit()
+                // Update all comments by this user (in all posts)
+                firestore.collection("posts")
+                    .get()
+                    .addOnSuccessListener { allPostsSnapshot ->
+                        for (postDoc in allPostsSnapshot.documents) {
+                            firestore.collection("posts")
+                                .document(postDoc.id)
+                                .collection("comments")
+                                .whereEqualTo("userId", userId)
+                                .get()
+                                .addOnSuccessListener { commentsSnapshot ->
+                                    if (!commentsSnapshot.isEmpty) {
+                                        val batch = firestore.batch()
+                                        for (commentDoc in commentsSnapshot.documents) {
+                                            batch.update(commentDoc.reference, "profileImageUrl", newProfileImageUrl)
+                                        }
+                                        batch.commit()
+                                    }
+                                }
                         }
-                }
+                    }
             }
     }
 

@@ -31,6 +31,15 @@ android {
         buildConfigField("String", "IMGBB_API_KEY", "\"$apiKey\"")
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("../app-release-key.jks")
+            storePassword = "android123"
+            keyAlias = "app-release"
+            keyPassword = "android123"
+        }
+    }
+    
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -38,6 +47,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {

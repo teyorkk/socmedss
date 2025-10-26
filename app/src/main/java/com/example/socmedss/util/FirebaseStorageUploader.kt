@@ -44,6 +44,11 @@ object FirebaseStorageUploader {
             val bitmap = BitmapFactory.decodeStream(inputStream)
             inputStream?.close()
             
+            // Check if bitmap was loaded successfully
+            if (bitmap == null) {
+                return null
+            }
+            
             // Compress image to reduce size
             val compressedBitmap = compressImage(bitmap)
             
