@@ -121,24 +121,30 @@ posts/
 ## 🎨 Key Features Explained
 
 ### Profile Picture Sync
+
 When you update your profile picture, it automatically updates across:
+
 - All your existing posts
 - All your existing comments
 - Uses Firestore batch operations for efficiency
 
 ### Smart Deletion
+
 Deleting a post automatically:
+
 - Removes all associated comments
 - Uses batch operations for performance
 - Provides clear user feedback
 
 ### Image Optimization
+
 - Images compressed to 800x800px max
 - JPEG quality: 85%
 - Disk caching with Glide
 - Faster subsequent loads
 
 ### Real-time Updates
+
 - Posts appear instantly without refresh
 - Comments update in real-time
 - Firestore snapshot listeners
@@ -177,7 +183,8 @@ This project is open source and available under the [MIT License](LICENSE).
 ## 👨‍💻 Author
 
 **Your Name**
-- GitHub: [@YOUR_USERNAME](https://github.com/YOUR_USERNAME)
+
+- GitHub: [@teyorkk](https://github.com/teyorkk)
 
 ## 🙏 Acknowledgments
 
@@ -191,6 +198,7 @@ This project is open source and available under the [MIT License](LICENSE).
 ✅ **Active Development**
 
 ### Recent Updates:
+
 - ✅ Auto-navigation to home feed after posting
 - ✅ Optimized loading indicators
 - ✅ Cascade delete for posts and comments
