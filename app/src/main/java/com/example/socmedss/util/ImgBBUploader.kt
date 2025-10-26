@@ -117,30 +117,21 @@ object ImgBBUploader {
             
             // Read response
             val responseCode = connection.responseCode
-            println("ImgBB Response Code: $responseCode")
             
             if (responseCode == HttpURLConnection.HTTP_OK) {
                 val response = connection.inputStream.bufferedReader().use { it.readText() }
-                println("ImgBB Response: $response")
                 val jsonResponse = JSONObject(response)
                 
                 // Extract image URL from response
                 if (jsonResponse.getBoolean("success")) {
                     val data = jsonResponse.getJSONObject("data")
                     val imageUrl = data.getString("url")
-                    println("ImgBB Image URL: $imageUrl")
                     return imageUrl
-                } else {
-                    println("ImgBB Upload failed: ${jsonResponse.optString("error")}")
                 }
-            } else {
-                val errorResponse = connection.errorStream?.bufferedReader()?.use { it.readText() }
-                println("ImgBB Error Response: $errorResponse")
             }
             
             return null
         } catch (e: Exception) {
-            println("ImgBB Upload Exception: ${e.message}")
             e.printStackTrace()
             return null
         }

@@ -4,6 +4,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.PopupMenu
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -29,6 +30,8 @@ import java.util.*
 class PostsAdapter(
     private val currentUserId: String,
     private val onPostClick: (Post) -> Unit,
+    private val onUsernameClick: ((String) -> Unit)? = null, // New callback for username clicks
+    private val onLikeClick: ((Post, Boolean) -> Unit)? = null, // Callback for like/unlike
     private val onEditClick: (Post) -> Unit,
     private val onDeleteClick: (Post) -> Unit
 ) : ListAdapter<Post, PostsAdapter.PostViewHolder>(PostDiffCallback()) {
@@ -49,6 +52,18 @@ class PostsAdapter(
             binding.apply {
                 // Set username
                 tvUsername.text = post.username
+                
+                // Make username clickable if callback is provided and it's not current user's post
+                if (onUsernameClick != null && post.userId != currentUserId) {
+                    tvUsername.setTextColor(ContextCompat.getColor(itemView.context, R.color.colorPrimary))
+                    tvUsername.isClickable = true
+                    tvUsername.setOnClickListener {
+                        onUsernameClick(post.userId)
+                    }
+                } else {
+                    tvUsername.isClickable = false
+                    tvUsername.setTextColor(ContextCompat.getColor(itemView.context, android.R.color.primary_text_light))
+                }
                 
                 // Set post text
                 tvPostText.text = post.text
@@ -91,6 +106,40 @@ class PostsAdapter(
                     }
                 } else {
                     btnMoreOptions.visibility = View.GONE
+                }
+                
+                // Update like button state and count
+                val isLiked = post.likedBy.contains(currentUserId)
+                val likeCount = post.likedBy.size
+                
+                // Set like button icon and text
+                btnLike.setIconResource(
+                    if (isLiked) R.drawable.ic_heart_filled
+                    else R.drawable.ic_heart_empty
+                )
+                
+                // Set like count as button text
+                btnLike.text = "$likeCount"
+                
+                // Customize button appearance based on like state
+                if (isLiked) {
+                    // Red when liked
+                    btnLike.setIconTintResource(R.color.red)
+                    btnLike.setTextColor(ContextCompat.getColor(itemView.context, R.color.red))
+                } else {
+                    // Gray when not liked
+                    btnLike.setIconTintResource(android.R.color.darker_gray)
+                    btnLike.setTextColor(ContextCompat.getColor(itemView.context, android.R.color.darker_gray))
+                }
+                
+                // Set like button click listener
+                if (onLikeClick != null) {
+                    btnLike.setOnClickListener {
+                        btnLike.isEnabled = false
+                        onLikeClick(post, !isLiked)
+                    }
+                } else {
+                    btnLike.visibility = View.GONE
                 }
                 
                 // Set click listener for the entire post card

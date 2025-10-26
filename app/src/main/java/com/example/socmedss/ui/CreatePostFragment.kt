@@ -19,7 +19,7 @@ import androidx.navigation.fragment.findNavController
 import com.example.socmedss.R
 import com.example.socmedss.databinding.FragmentCreatePostBinding
 import com.example.socmedss.model.Post
-import com.example.socmedss.util.ImgBBUploader
+import com.example.socmedss.util.HybridImageUploader
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
@@ -29,7 +29,8 @@ import java.util.*
  * Create Post Fragment
  * 
  * Allows users to create new posts with text and optional images.
- * Uploads images to ImgBB and saves post data to Firestore.
+ * Uploads images using Firebase Storage (primary) with ImgBB as backup.
+ * Saves post data to Firestore.
  */
 class CreatePostFragment : Fragment() {
 
@@ -225,18 +226,19 @@ class CreatePostFragment : Fragment() {
     }
 
     /**
-     * Uploads image to ImgBB and creates post
+     * Uploads image with automatic fallback (Firebase Storage primary, ImgBB backup)
      * 
      * @param postText The text content of the post
      */
     private fun uploadImageAndCreatePost(postText: String) {
         val imageUri = selectedImageUri ?: return
+        val userId = auth.currentUser?.uid ?: return
         
-        // Upload to ImgBB using coroutine
+        // Upload with automatic fallback
         lifecycleScope.launch {
             try {
-                // Upload image to ImgBB
-                val imageUrl = ImgBBUploader.uploadImage(requireContext(), imageUri)
+                // Upload image using hybrid uploader (Firebase primary, ImgBB backup)
+                val imageUrl = HybridImageUploader.uploadImage(requireContext(), imageUri, userId)
                 
                 if (imageUrl != null) {
                     createPostInFirestore(postText, imageUrl)
@@ -271,9 +273,6 @@ class CreatePostFragment : Fragment() {
      */
     private fun createPostInFirestore(postText: String, imageUrl: String?) {
         val userId = auth.currentUser?.uid ?: return
-        
-        // Debug logging
-        println("CreatePost - ImageURL: $imageUrl")
         
         // Create Post object
         val post = Post(
@@ -329,12 +328,12 @@ class CreatePostFragment : Fragment() {
     }
 
     /**
-     * Shows or hides the loading indicator
+     * Shows or hides the modern loading overlay
      * 
      * @param show true to show loading, false to hide
      */
     private fun showLoading(show: Boolean) {
-        binding.progressBar.visibility = if (show) View.VISIBLE else View.GONE
+        binding.loadingOverlay.visibility = if (show) View.VISIBLE else View.GONE
         binding.btnPost.isEnabled = !show
         binding.btnAddImage.isEnabled = !show
     }

@@ -63,6 +63,8 @@ class HomeFeedFragment : Fragment() {
         postsAdapter = PostsAdapter(
             currentUserId = currentUserId,
             onPostClick = { post -> navigateToPostDetails(post) },
+            onUsernameClick = { userId -> navigateToUserProfile(userId) }, // Navigate to user profile when username clicked
+            onLikeClick = { post, isLiked -> toggleLike(post, isLiked) }, // Handle like/unlike
             onEditClick = { post -> showEditPostDialog(post) },
             onDeleteClick = { post -> showDeletePostConfirmation(post) }
         )
@@ -142,29 +144,51 @@ class HomeFeedFragment : Fragment() {
         }
         startActivity(intent)
     }
+    
+    /**
+     * Navigates to user profile viewer
+     * 
+     * @param userId The ID of the user whose profile to view
+     */
+    private fun navigateToUserProfile(userId: String) {
+        val intent = Intent(requireContext(), UserProfileActivity::class.java).apply {
+            putExtra("USER_ID", userId)
+        }
+        startActivity(intent)
+    }
+    
+    /**
+     * Toggles like status for a post
+     * 
+     * @param post The post to like/unlike
+     * @param shouldLike true to like, false to unlike
+     */
+    private fun toggleLike(post: Post, shouldLike: Boolean) {
+        val currentUserId = auth.currentUser?.uid ?: return
+        val postRef = firestore.collection("posts").document(post.postId)
+        
+        val updatedLikedBy = if (shouldLike) {
+            (post.likedBy + currentUserId).distinct()
+        } else {
+            post.likedBy.filter { it != currentUserId }
+        }
+        
+        postRef.update("likedBy", updatedLikedBy)
+            .addOnCompleteListener {
+                // Re-enable button regardless of success/failure
+                // The snapshot listener will update the UI anyway
+            }
+    }
 
     /**
      * Shows dialog to edit post
      */
     private fun showEditPostDialog(post: Post) {
-        val editText = EditText(requireContext()).apply {
-            setText(post.text)
-            hint = "Edit your post"
+        // Navigate to dedicated edit post activity
+        val intent = Intent(requireContext(), EditPostActivity::class.java).apply {
+            putExtra("POST_ID", post.postId)
         }
-        
-        AlertDialog.Builder(requireContext())
-            .setTitle("Edit Post")
-            .setView(editText)
-            .setPositiveButton("Save") { _, _ ->
-                val newText = editText.text.toString().trim()
-                if (newText.isNotEmpty()) {
-                    updatePost(post.postId, newText)
-                } else {
-                    Toast.makeText(requireContext(), "Post text cannot be empty", Toast.LENGTH_SHORT).show()
-                }
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
+        startActivity(intent)
     }
     
     /**

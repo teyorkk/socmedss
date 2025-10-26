@@ -7,4 +7,10 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    
+    <!-- Primary color for clickable usernames -->
+    <color name="colorPrimary">#FF6200EE</color>
+    
+    <!-- Red color for liked posts -->
+    <color name="red">#FFFF0000</color>
 </resources>

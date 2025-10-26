@@ -32,8 +32,11 @@ class PostDetailsActivity : AppCompatActivity() {
     private lateinit var commentsAdapter: CommentsAdapter
     
     private var postId: String = ""
+    private var currentUserId: String = ""
     private var currentUsername: String = "Anonymous"
     private var currentProfileImageUrl: String? = null
+    private var isPostLiked: Boolean = false
+    private var currentLikedBy: List<String> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,9 +49,12 @@ class PostDetailsActivity : AppCompatActivity() {
         
         postId = intent.getStringExtra("POST_ID") ?: ""
 
+        currentUserId = auth.currentUser?.uid ?: ""
+        
         setupToolbar()
         setupCommentsRecyclerView()
         displayPostDetails()
+        loadPostData()
         loadUserInfo()
         loadComments()
         setupClickListeners()
@@ -61,6 +67,25 @@ class PostDetailsActivity : AppCompatActivity() {
         binding.toolbar.setNavigationOnClickListener {
             finish()
         }
+    }
+    
+    /**
+     * Loads post data including like information
+     */
+    private fun loadPostData() {
+        if (postId.isEmpty()) return
+        
+        firestore.collection("posts")
+            .document(postId)
+            .get()
+            .addOnSuccessListener { document ->
+                if (document.exists()) {
+                    val likedBy = document.get("likedBy") as? List<*> ?: emptyList<String>()
+                    currentLikedBy = likedBy.mapNotNull { it as? String }
+                    isPostLiked = currentLikedBy.contains(currentUserId)
+                    updateLikeButton()
+                }
+            }
     }
 
     /**
@@ -158,8 +183,10 @@ class PostDetailsActivity : AppCompatActivity() {
     private fun loadComments() {
         if (postId.isEmpty()) return
         
-        firestore.collection("comments")
-            .whereEqualTo("postId", postId)
+        // Note: Comments are stored as subcollection under posts
+        firestore.collection("posts")
+            .document(postId)
+            .collection("comments")
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     Toast.makeText(
@@ -192,6 +219,10 @@ class PostDetailsActivity : AppCompatActivity() {
         binding.btnSendComment.setOnClickListener {
             addComment()
         }
+        
+        binding.btnLike.setOnClickListener {
+            toggleLike()
+        }
     }
     
     /**
@@ -215,7 +246,10 @@ class PostDetailsActivity : AppCompatActivity() {
             text = commentText
         )
         
-        firestore.collection("comments")
+        // Store comment as subcollection of post
+        firestore.collection("posts")
+            .document(postId)
+            .collection("comments")
             .add(comment)
             .addOnSuccessListener {
                 binding.etComment.text?.clear()
@@ -258,7 +292,9 @@ class PostDetailsActivity : AppCompatActivity() {
      * Updates comment in Firestore
      */
     private fun updateComment(commentId: String, newText: String) {
-        firestore.collection("comments")
+        firestore.collection("posts")
+            .document(postId)
+            .collection("comments")
             .document(commentId)
             .update("text", newText)
             .addOnSuccessListener {
@@ -291,7 +327,9 @@ class PostDetailsActivity : AppCompatActivity() {
      * Deletes comment from Firestore
      */
     private fun deleteComment(commentId: String) {
-        firestore.collection("comments")
+        firestore.collection("posts")
+            .document(postId)
+            .collection("comments")
             .document(commentId)
             .delete()
             .addOnSuccessListener {
@@ -302,6 +340,60 @@ class PostDetailsActivity : AppCompatActivity() {
                     this,
                     "Failed to delete comment: ${e.message}",
                     Toast.LENGTH_LONG
+                ).show()
+            }
+    }
+    
+    /**
+     * Updates the like button appearance
+     */
+    private fun updateLikeButton() {
+        val likeCount = currentLikedBy.size
+        
+        // Set like button icon and text
+        binding.btnLike.setIconResource(
+            if (isPostLiked) R.drawable.ic_heart_filled
+            else R.drawable.ic_heart_empty
+        )
+        
+        // Set like count as button text
+        binding.btnLike.text = "$likeCount"
+        
+        // Customize button appearance based on like state
+        if (isPostLiked) {
+            // Red when liked
+            binding.btnLike.setIconTintResource(R.color.red)
+            binding.btnLike.setTextColor(getColor(R.color.red))
+        } else {
+            // Gray when not liked
+            binding.btnLike.setIconTintResource(android.R.color.darker_gray)
+            binding.btnLike.setTextColor(getColor(android.R.color.darker_gray))
+        }
+    }
+    
+    /**
+     * Toggles like status for the post
+     */
+    private fun toggleLike() {
+        val postRef = firestore.collection("posts").document(postId)
+        
+        val updatedLikedBy = if (isPostLiked) {
+            currentLikedBy.filter { it != currentUserId }
+        } else {
+            (currentLikedBy + currentUserId).distinct()
+        }
+        
+        postRef.update("likedBy", updatedLikedBy)
+            .addOnSuccessListener {
+                isPostLiked = !isPostLiked
+                currentLikedBy = updatedLikedBy
+                updateLikeButton()
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(
+                    this,
+                    "Failed to update like: ${e.message}",
+                    Toast.LENGTH_SHORT
                 ).show()
             }
     }

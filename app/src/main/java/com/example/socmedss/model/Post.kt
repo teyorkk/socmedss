@@ -23,5 +23,6 @@ data class Post(
     val text: String = "",
     val imageUrl: String? = null,
     @ServerTimestamp
-    val timestamp: Date? = null
+    val timestamp: Date? = null,
+    val likedBy: List<String> = emptyList() // List of user IDs who liked this post
 )

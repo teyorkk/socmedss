@@ -93,6 +93,35 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tv_post_text" />
 
+        <!-- Separator Line (appears after image or after text if no image) -->
+        <View
+            android:id="@+id/separator_line"
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_marginTop="12dp"
+            android:background="#E0E0E0"
+            android:alpha="0.3"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/iv_post_image" />
+
+        <!-- Like Section (Button + Count) - Heart icon + number of likes -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_like"
+            style="@style/Widget.Material3.Button.Icon"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:contentDescription="Like"
+            android:text="0"
+            android:textColor="?attr/colorOnSurface"
+            android:backgroundTint="@android:color/transparent"
+            app:icon="@drawable/ic_heart_empty"
+            app:iconGravity="textStart"
+            app:iconPadding="4dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/separator_line" />
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 </com.google.android.material.card.MaterialCardView>
 

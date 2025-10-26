@@ -26,7 +26,7 @@ import com.example.socmedss.adapter.PostsAdapter
 import com.example.socmedss.auth.LoginActivity
 import com.example.socmedss.databinding.FragmentProfileBinding
 import com.example.socmedss.model.Post
-import com.example.socmedss.util.ImgBBUploader
+import com.example.socmedss.util.HybridImageUploader
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
@@ -110,6 +110,8 @@ class ProfileFragment : Fragment() {
         postsAdapter = PostsAdapter(
             currentUserId = currentUserId,
             onPostClick = { post -> navigateToPostDetails(post) },
+            onUsernameClick = null, // No username clicks needed in profile view (own posts)
+            onLikeClick = { post, isLiked -> toggleLike(post, isLiked) }, // Handle like/unlike
             onEditClick = { post -> showEditPostDialog(post) },
             onDeleteClick = { post -> showDeletePostConfirmation(post) }
         )
@@ -260,18 +262,18 @@ class ProfileFragment : Fragment() {
     }
     
     /**
-     * Uploads profile picture to ImgBB and updates Firestore
+     * Uploads profile picture to Firebase Storage (with ImgBB backup) and updates Firestore
      */
     private fun uploadProfilePicture(uri: Uri) {
         val userId = auth.currentUser?.uid ?: return
         
         showLoading(true)
         
-        // Upload to ImgBB using coroutine
+        // Upload to Firebase Storage using coroutine
         lifecycleScope.launch {
             try {
-                // Upload image to ImgBB
-                val imageUrl = ImgBBUploader.uploadImage(requireContext(), uri)
+                // Upload image using hybrid uploader (Firebase Storage primary, ImgBB backup)
+                val imageUrl = HybridImageUploader.uploadImage(requireContext(), uri, userId, true)
                 
                 if (imageUrl != null) {
                     // Update Firestore user document
@@ -354,12 +356,12 @@ class ProfileFragment : Fragment() {
     }
 
     /**
-     * Shows or hides the loading indicator
+     * Shows or hides the modern loading overlay
      * 
      * @param show true to show loading, false to hide
      */
     private fun showLoading(show: Boolean) {
-        binding.progressBar.visibility = if (show) View.VISIBLE else View.GONE
+        binding.loadingOverlay.visibility = if (show) View.VISIBLE else View.GONE
     }
 
     /**
@@ -383,24 +385,11 @@ class ProfileFragment : Fragment() {
      * Shows dialog to edit post
      */
     private fun showEditPostDialog(post: Post) {
-        val editText = EditText(requireContext()).apply {
-            setText(post.text)
-            hint = "Edit your post"
+        // Navigate to dedicated edit post activity
+        val intent = Intent(requireContext(), EditPostActivity::class.java).apply {
+            putExtra("POST_ID", post.postId)
         }
-        
-        AlertDialog.Builder(requireContext())
-            .setTitle("Edit Post")
-            .setView(editText)
-            .setPositiveButton("Save") { _, _ ->
-                val newText = editText.text.toString().trim()
-                if (newText.isNotEmpty()) {
-                    updatePost(post.postId, newText)
-                } else {
-                    Toast.makeText(requireContext(), "Post text cannot be empty", Toast.LENGTH_SHORT).show()
-                }
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
+        startActivity(intent)
     }
     
     /**
@@ -524,31 +513,54 @@ class ProfileFragment : Fragment() {
                 }
                 // Commit batch update for posts
                 batch.commit()
-                    .addOnSuccessListener {
-                        println("Profile picture updated in ${postsSnapshot.size()} posts")
-                    }
-                    .addOnFailureListener { e ->
-                        println("Failed to update posts: ${e.message}")
-                    }
             }
         
-        // Update all comments by this user
-        firestore.collectionGroup("comments")
-            .whereEqualTo("userId", userId)
+        // Update all comments by this user (in all posts)
+        firestore.collection("posts")
             .get()
-            .addOnSuccessListener { commentsSnapshot ->
+            .addOnSuccessListener { postsSnapshot ->
                 val batch = firestore.batch()
-                for (document in commentsSnapshot.documents) {
-                    batch.update(document.reference, "profileImageUrl", newProfileImageUrl)
+                var updatedComments = 0
+                
+                for (postDoc in postsSnapshot.documents) {
+                    firestore.collection("posts")
+                        .document(postDoc.id)
+                        .collection("comments")
+                        .whereEqualTo("userId", userId)
+                        .get()
+                        .addOnSuccessListener { commentsSnapshot ->
+                            for (commentDoc in commentsSnapshot.documents) {
+                                batch.update(commentDoc.reference, "profileImageUrl", newProfileImageUrl)
+                                updatedComments++
+                            }
+                            
+                            // Commit batch update
+                            batch.commit()
+                        }
                 }
-                // Commit batch update for comments
-                batch.commit()
-                    .addOnSuccessListener {
-                        println("Profile picture updated in ${commentsSnapshot.size()} comments")
-                    }
-                    .addOnFailureListener { e ->
-                        println("Failed to update comments: ${e.message}")
-                    }
+            }
+    }
+
+    /**
+     * Toggles like status for a post
+     * 
+     * @param post The post to like/unlike
+     * @param shouldLike true to like, false to unlike
+     */
+    private fun toggleLike(post: Post, shouldLike: Boolean) {
+        val currentUserId = auth.currentUser?.uid ?: return
+        val postRef = firestore.collection("posts").document(post.postId)
+        
+        val updatedLikedBy = if (shouldLike) {
+            (post.likedBy + currentUserId).distinct()
+        } else {
+            post.likedBy.filter { it != currentUserId }
+        }
+        
+        postRef.update("likedBy", updatedLikedBy)
+            .addOnCompleteListener {
+                // Re-enable button regardless of success/failure
+                // The snapshot listener will update the UI anyway
             }
     }
 
